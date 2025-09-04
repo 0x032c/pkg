@@ -6,30 +6,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Response 定义返回结构
+// Response defines the structure of a standard API response.
 type Response struct {
-	Code      int         `json:"code"`       // 错误码：0 表示成功，其他表示失败
-	Message   string      `json:"message"`    // 提示信息
-	RequestID string      `json:"request_id"` // 请求的 ID，便于追踪
-	Data      interface{} `json:"data"`       // 返回数据
+	Code      int         `json:"code"`       // Error code: 0 means success, other values indicate failure.
+	Message   string      `json:"message"`    // Prompt or error message.
+	RequestID string      `json:"request_id"` // Unique request ID for tracing.
+	Data      interface{} `json:"data"`       // Response data payload.
 }
 
-// Codes 定义常见状态码
+// Common response codes.
 const (
-	SuccessCode = 0 // 成功的状态码
-	ErrorCode   = 1 // 失败的状态码
-	WarnCode    = 2 // 警告的状态码
+	SuccessCode = 0 // Success status code.
+	ErrorCode   = 1 // Error status code.
+	WarnCode    = 2 // Warning status code.
 )
 
-// Option 响应可选项
+// Option defines optional fields for customizing API responses.
 type Option struct {
-	HTTPStatus int
-	Code       int
-	Message    string
-	Data       interface{}
+	HTTPStatus int         // HTTP status code.
+	Code       int         // Business error code.
+	Message    string      // Custom message.
+	Data       interface{} // Data payload.
 }
 
-// getRequestID 从 gin.Context 获取 request_id，如果不存在返回空字符串
+// getRequestID retrieves the request ID from gin.Context.
+// Returns an empty string if not found.
 func getRequestID(c *gin.Context) string {
 	if id, ok := c.Get("request_id"); ok {
 		if str, ok := id.(string); ok {
@@ -39,7 +40,7 @@ func getRequestID(c *gin.Context) string {
 	return ""
 }
 
-// JSON 响应统一出口
+// JSON sends a standardized API response as JSON.
 func JSON(c *gin.Context, opts Option) {
 	if opts.Message == "" {
 		switch opts.Code {
@@ -65,7 +66,7 @@ func JSON(c *gin.Context, opts Option) {
 	})
 }
 
-// Success 返回成功响应
+// Success returns a success response with a custom message and data.
 func Success(c *gin.Context, msg string, data interface{}) {
 	JSON(c, Option{
 		Code:       SuccessCode,
@@ -75,7 +76,7 @@ func Success(c *gin.Context, msg string, data interface{}) {
 	})
 }
 
-// Warn 返回警告响应
+// Warn returns a warning response with a custom message and data.
 func Warn(c *gin.Context, msg string, data interface{}) {
 	JSON(c, Option{
 		Code:       WarnCode,
@@ -85,7 +86,7 @@ func Warn(c *gin.Context, msg string, data interface{}) {
 	})
 }
 
-// Error 返回错误响应，可以自定义 http 状态码
+// Error returns an error response with a custom message, data, and HTTP status code.
 func Error(c *gin.Context, msg string, data interface{}, httpStatus ...int) {
 	status := http.StatusInternalServerError
 	if len(httpStatus) > 0 && httpStatus[0] > 0 {
