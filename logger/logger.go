@@ -18,6 +18,7 @@ var (
 	zapLogger *zap.Logger
 )
 
+// Config holds logger configuration
 type Config struct {
 	LogPath    string
 	MaxSize    int
@@ -26,6 +27,7 @@ type Config struct {
 	Level      string
 }
 
+// DefaultConfig provides default logger settings
 func DefaultConfig() Config {
 	return Config{
 		LogPath:    "./logs/app.log",
@@ -36,6 +38,7 @@ func DefaultConfig() Config {
 	}
 }
 
+// InitLogger initializes the logger with the given configuration
 func InitLogger(cfg Config) error {
 	if cfg.LogPath == "" {
 		return fmt.Errorf("log path is required")
@@ -51,16 +54,23 @@ func InitLogger(cfg Config) error {
 	})
 	consoleSyncer := zapcore.AddSync(os.Stdout)
 	encCfg := zapcore.EncoderConfig{
-		MessageKey: "msg", LevelKey: "level", TimeKey: "ts", CallerKey: "caller",
-		EncodeLevel: zapcore.CapitalLevelEncoder, EncodeTime: zapcore.ISO8601TimeEncoder,
-		EncodeCaller: zapcore.ShortCallerEncoder, LineEnding: zapcore.DefaultLineEnding,
+		MessageKey: "msg",
+		LevelKey:   "level",
+		TimeKey:    "ts",
+		CallerKey:  "caller",
+		EncodeLevel:  zapcore.CapitalLevelEncoder,
+		EncodeTime:   zapcore.ISO8601TimeEncoder,
+		EncodeCaller: zapcore.ShortCallerEncoder,
+		LineEnding:   zapcore.DefaultLineEnding,
 	}
 	fileEncoder := zapcore.NewJSONEncoder(encCfg)
 	consoleEncoderCfg := encCfg
 	consoleEncoderCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderCfg)
+
 	level := zapcore.InfoLevel
 	_ = level.UnmarshalText([]byte(strings.ToLower(cfg.Level)))
+
 	core := zapcore.NewTee(
 		zapcore.NewCore(fileEncoder, fileSyncer, level),
 		zapcore.NewCore(consoleEncoder, consoleSyncer, level),
@@ -69,6 +79,7 @@ func InitLogger(cfg Config) error {
 	return nil
 }
 
+// Logger returns the global logger, or a no-op logger if not initialized
 func Logger() *zap.Logger {
 	if zapLogger == nil {
 		log.Println("Logger not initialized")
@@ -77,6 +88,7 @@ func Logger() *zap.Logger {
 	return zapLogger
 }
 
+// Sync flushes buffered logs
 func Sync() error {
 	if zapLogger != nil {
 		return zapLogger.Sync()
@@ -84,11 +96,12 @@ func Sync() error {
 	return nil
 }
 
+// GinLogger is a Gin middleware for logging HTTP requests
 func GinLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
-		Logger().Info("HTTP",
+		Logger().Info("HTTP request",
 			zap.Int("status", c.Writer.Status()),
 			zap.String("method", c.Request.Method),
 			zap.String("path", c.Request.URL.Path),
@@ -100,11 +113,12 @@ func GinLogger() gin.HandlerFunc {
 	}
 }
 
+// GinRecovery is a Gin middleware for recovering from panics
 func GinRecovery() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				Logger().Error("Panic", zap.Any("err", err))
+				Logger().Error("Panic recovered", zap.Any("err", err))
 				c.AbortWithStatus(500)
 			}
 		}()
@@ -112,12 +126,14 @@ func GinRecovery() gin.HandlerFunc {
 	}
 }
 
+// Structured log methods
 func Info(msg string, fields ...zap.Field)  { Logger().Info(msg, fields...) }
 func Error(msg string, fields ...zap.Field) { Logger().Error(msg, fields...) }
 func Debug(msg string, fields ...zap.Field) { Logger().Debug(msg, fields...) }
 func Warn(msg string, fields ...zap.Field)  { Logger().Warn(msg, fields...) }
 func Fatal(msg string, fields ...zap.Field) { Logger().Fatal(msg, fields...) }
 
+// Formatted log methods
 func Infof(format string, args ...interface{})  { Logger().Info(fmt.Sprintf(format, args...)) }
 func Errorf(format string, args ...interface{}) { Logger().Error(fmt.Sprintf(format, args...)) }
 func Debugf(format string, args ...interface{}) { Logger().Debug(fmt.Sprintf(format, args...)) }
